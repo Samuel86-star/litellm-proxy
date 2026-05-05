@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Local secrets/env
+.env
+.env.local
+*.pem
+
+# macOS
+.DS_Store
+
+# Logs and temp
+*.log
+tmp/
+temp/
