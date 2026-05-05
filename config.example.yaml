@@ -1,0 +1,105 @@
+model_list:
+  # ============================================================
+  # DeepSeek direct
+  # ============================================================
+  - model_name: deepseek-v4-pro
+    litellm_params:
+      model: deepseek/deepseek-v4-pro
+      api_base: https://api.deepseek.com/v1
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+  - model_name: deepseek-v4-flash
+    litellm_params:
+      model: deepseek/deepseek-v4-flash
+      api_base: https://api.deepseek.com/v1
+      api_key: os.environ/DEEPSEEK_API_KEY
+
+  # ============================================================
+  # Volcano Ark Coding Plan (OpenAI-compatible endpoint)
+  # MUST use /api/coding/v3 and use_chat_completions_api: true
+  # ============================================================
+  - model_name: glm-5.1
+    litellm_params:
+      model: openai/glm-5.1
+      api_base: https://ark.cn-beijing.volces.com/api/coding/v3
+      api_key: os.environ/VOLCANO_ARK_API_KEY
+      use_chat_completions_api: true
+
+  - model_name: kimi-k2.6
+    litellm_params:
+      model: openai/kimi-k2.6
+      api_base: https://ark.cn-beijing.volces.com/api/coding/v3
+      api_key: os.environ/VOLCANO_ARK_API_KEY
+      use_chat_completions_api: true
+
+  - model_name: minimax-m2.7
+    litellm_params:
+      model: openai/minimax-m2.7
+      api_base: https://ark.cn-beijing.volces.com/api/coding/v3
+      api_key: os.environ/VOLCANO_ARK_API_KEY
+      use_chat_completions_api: true
+
+  - model_name: doubao-seed-code
+    litellm_params:
+      model: openai/doubao-seed-code
+      api_base: https://ark.cn-beijing.volces.com/api/coding/v3
+      api_key: os.environ/VOLCANO_ARK_API_KEY
+      use_chat_completions_api: true
+
+  - model_name: ark-auto
+    litellm_params:
+      model: openai/ark-code-latest
+      api_base: https://ark.cn-beijing.volces.com/api/coding/v3
+      api_key: os.environ/VOLCANO_ARK_API_KEY
+      use_chat_completions_api: true
+
+  # ------------------------------------------------------------
+  # Codex model aliases -> route to kimi-k2.6
+  # ------------------------------------------------------------
+  - model_name: gpt-5.4
+    litellm_params:
+      model: openai/kimi-k2.6
+      api_base: https://ark.cn-beijing.volces.com/api/coding/v3
+      api_key: os.environ/VOLCANO_ARK_API_KEY
+      use_chat_completions_api: true
+
+  - model_name: gpt-5.5
+    litellm_params:
+      model: openai/kimi-k2.6
+      api_base: https://ark.cn-beijing.volces.com/api/coding/v3
+      api_key: os.environ/VOLCANO_ARK_API_KEY
+      use_chat_completions_api: true
+
+  - model_name: gpt-5.4-mini
+    litellm_params:
+      model: openai/kimi-k2.6
+      api_base: https://ark.cn-beijing.volces.com/api/coding/v3
+      api_key: os.environ/VOLCANO_ARK_API_KEY
+      use_chat_completions_api: true
+
+  - model_name: gpt-5.3-codex
+    litellm_params:
+      model: openai/kimi-k2.6
+      api_base: https://ark.cn-beijing.volces.com/api/coding/v3
+      api_key: os.environ/VOLCANO_ARK_API_KEY
+      use_chat_completions_api: true
+
+  - model_name: gpt-5.2
+    litellm_params:
+      model: openai/kimi-k2.6
+      api_base: https://ark.cn-beijing.volces.com/api/coding/v3
+      api_key: os.environ/VOLCANO_ARK_API_KEY
+      use_chat_completions_api: true
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+litellm_settings:
+  drop_params: true
+  set_verbose: false
+  telemetry: false
+  request_timeout: 600
+  num_retries: 2
+  callbacks:
+    - tool_filter.deepseek_tool_filter
+    - tool_filter.deepseek_v4_reasoning_fix

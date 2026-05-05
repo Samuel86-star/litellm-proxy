@@ -1,8 +1,23 @@
-# LiteLLM 本地代理：让 Codex Desktop GUI 对接 DeepSeek V4 Pro
+# LiteLLM 本地代理：让 Codex Desktop GUI 对接 DeepSeek + 火山方舟
 
-> 目标：用 LiteLLM 在本机 `127.0.0.1:4000` 起一个协议翻译网关，把 Codex Desktop 发出的 **Responses API** 请求转成 DeepSeek 只支持的 **Chat Completions** 格式，从而绕过 Codex 新版 `wire_api = "chat" is no longer supported` 的报错。
+> 目标：用 LiteLLM 在本机 `127.0.0.1:4000` 起一个协议翻译网关，把 Codex Desktop 发出的 **Responses API** 转为后端可接受格式，并统一路由到 DeepSeek 或火山方舟 Coding（Kimi/GLM/MiniMax/Doubao）。
 >
 > 环境：macOS（darwin 25.x），Apple Silicon，已装 Homebrew 与 `uv`。
+
+---
+
+## 0.1 2026-05-04 现状修订（必读）
+
+这份文档前半部分来自早期“仅 DeepSeek”版本；你当前环境已经扩展为“DeepSeek + 火山方舟 Coding”双线路。为避免混淆，以下 6 点以当前落地文件为准：
+
+1. `~/litellm/config.yaml`：已包含 `kimi-k2.6`、`glm-5.1`、`minimax-m2.7`、`doubao-seed-code`、`ark-auto`，并给 `gpt-5.*` 做了别名映射到 Kimi。
+2. 火山条目必须走 `https://ark.cn-beijing.volces.com/api/coding/v3`，且 `use_chat_completions_api: true`。
+3. `~/litellm/tool_filter.py` 已包含：非 function tools 过滤、Volcano 参数剥离、schema 放松、多模态折叠、tool 链修复、火山 tools 限额与描述截断。
+4. `~/litellm/run.sh` 必须 `exec "$PY" "$DIR/run_proxy.py"` 启动；不要直接 `exec litellm ...`，否则 `input_callback` 的 POST 前修补不会生效。
+5. 可选环境变量：`LITELLM_FORCE_PROXY_MODEL`、`VOLCANO_MAX_TOOLS`、`VOLCANO_TOOL_DESC_MAX_CHARS`（写在 `.env` 由 `run.sh` 加载）。
+6. 当前主要排障目标已从“wire_api 报错”转向“火山 `InvalidParameter` 兼容性”。
+
+> 建议：把本文当“操作手册 + 历史说明”，具体行为以 `config.yaml` 和 `tool_filter.py` 文件内注释为准（它们已做分段文档化）。
 
 ---
 
@@ -242,7 +257,16 @@ fi
 # 使用 uv 安装的隔离环境
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/bin:/bin"
 
-exec litellm \
+# 必须通过 run_proxy.py 启动，确保 input_callback 注册到 log_pre_api_call
+_LIT="$(command -v litellm)"
+_PY=""
+if [[ -n "$_LIT" && -r "$_LIT" ]]; then
+  _PY="$(head -1 "$_LIT")"
+  _PY="${_PY#\#!}"
+fi
+[[ -n "$_PY" && -x "$_PY" ]] || _PY="$(command -v python3)"
+
+exec "$_PY" "$DIR/run_proxy.py" \
   --config "$DIR/config.yaml" \
   --host 127.0.0.1 \
   --port 4000
@@ -591,7 +615,7 @@ rm -rf ~/litellm ~/Library/Logs/LiteLLM
 ```bash
 launchctl bootout gui/$(id -u)/ai.litellm.proxy
 source ~/litellm/.env
-litellm --config ~/litellm/config.yaml --host 127.0.0.1 --port 4000 --detailed_debug
+python3 ~/litellm/run_proxy.py --config ~/litellm/config.yaml --host 127.0.0.1 --port 4000 --detailed_debug
 ```
 
 `Ctrl+C` 退出后再 `launchctl bootstrap ...` 恢复后台模式。
@@ -664,6 +688,8 @@ launchctl kickstart -k gui/$(id -u)/ai.litellm.proxy
 | 长回复中途断流                                                             | 默认超时不够                          | `config.yaml` 里 `request_timeout` 调大                                                 |
 | DeepSeek 返回 `insufficient tool messages`                            | 工具调用时 reasoning 模式参数不兼容         | 确认用的是 `deepseek-v4-pro` 非 reasoner 变体；`drop_params: true` 已开                         |
 | `content: ""` 空回答 + `finish_reason: length` + `reasoning_tokens` 爆满 | thinking 模式把 `max_tokens` 额度吃光  | 把 `max_tokens` 加到 ≥ 2048；或改用 `deepseek-v4-pro-fast` 档（`reasoning_effort: "minimal"`） |
+| `litellm.BadRequestError ... InvalidParameter ... model group=kimi-k2.6` | 火山 OpenAI 兼容层不接受请求体某些结构（常见于 tools/schema 过大） | 检查 `stdout.log` 的 `[volcano_tool_slim]`、`[volcano_ark_sanitize]`；按需调 `VOLCANO_MAX_TOOLS` 与 `VOLCANO_TOOL_DESC_MAX_CHARS` |
+| curl 最小请求成功，但 Codex Desktop `say hi` 仍 400 | Codex 实际会自动携带多条 messages + 多个 tools，不是最小 payload | 以 `/v1/responses` 日志计数为准，重点看 `tool_filter` 与 `volcano_*` 前缀日志 |
 
 
 ---
@@ -713,6 +739,6 @@ launchctl kickstart -k gui/$(id -u)/ai.litellm.proxy
 
 ---
 
-> 最后更新：2026-05-02（新增分档配置与 context/max_tokens/reasoning_effort 参数说明）
+> 最后更新：2026-05-04（补火山方舟/Kimi 路径、run_proxy 启动要求、tool_filter 兼容修补说明）
 > 维护人：maerun
 
