@@ -13,6 +13,10 @@ __pycache__/
 # macOS
 .DS_Store
 
+# Runtime files (install.sh generates these into ~/litellm/)
+config.yaml
+ai.litellm.proxy.plist
+
 # Logs and temp
 *.log
 tmp/
