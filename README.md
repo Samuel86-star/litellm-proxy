@@ -107,6 +107,11 @@ open -e ~/litellm/.env
 - 这是正常的，`requires_openai_auth = true` 必须开启才会显示模型选择器
 - 选 "API Key"，随便输入几个字符回车即可
 
+**cx 切换模型后，日志显示还是 kimi？**
+- 检查是否启用了 `LITELLM_FORCE_PROXY_MODEL`：`grep FORCE_PROXY ~/litellm/.env`
+- 这行会覆盖所有请求（包括 cx 指定的模型），日常应保持注释
+- gpt-5.x 的兜底路由在 `config.yaml` 里已单独配置，不需要靠这个变量
+
 ## 给 AI 工具的执行指令（可直接复制）
 
 如果你在新机器上让 Cursor/Claude/Codex 代你搭环境，直接给它这段：
