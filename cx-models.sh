@@ -80,6 +80,30 @@ model = \"$model\"
   fi
   echo "config.toml: model = \"$model\""
 
+  # --------------- 同步当前活跃线程的 model（修复 SQLite 持久化问题）---------------
+  local state_db="$HOME/.codex/state_5.sqlite"
+  if [[ -f "$state_db" ]]; then
+    local changes
+    changes=$(python3 -c "
+import sqlite3
+con = sqlite3.connect('$state_db')
+cur = con.cursor()
+cur.execute(\"UPDATE threads SET model='$model' WHERE id=(SELECT id FROM threads WHERE archived=0 ORDER BY updated_at DESC LIMIT 1)\")
+print(cur.rowcount)
+con.commit()
+con.close()
+" 2>&1)
+    if [[ "$changes" -gt 0 ]]; then
+      echo "state_5.sqlite: updated current thread model -> $model"
+    elif [[ "$changes" == "0" ]]; then
+      echo "state_5.sqlite: no active thread to update (will apply on new session)"
+    else
+      echo "state_5.sqlite: warning - $changes"
+    fi
+  else
+    echo "state_5.sqlite: not found, skipping thread model sync"
+  fi
+
   # --------------- 杀掉旧进程 ---------------
   pkill -f "Codex.app" 2>/dev/null && sleep 2
 
